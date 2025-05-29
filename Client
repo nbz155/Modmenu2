@@ -1,9 +1,0 @@
-local CheatScripts = Instance.new("Folder")
-CheatScripts.Name = "CheatScripts"
-
-local RecievingEndMsg = Instance.new("LocalScript")
-RecievingEndMsg.Name = "RecievingEndMsg"
-RecievingEndMsg.Source = "local Players = game:GetService(\"Players\")\nlocal ReplicatedStorage = game:GetService(\"ReplicatedStorage\")\n\nlocal player = Players.LocalPlayer\nlocal PrivateEvent = ReplicatedStorage:WaitForChild(\"PrivateMessage\")\n\nlocal function showMessage(sender, message)\n\tlocal gui = player:WaitForChild(\"PlayerGui\")\n\tlocal container = gui:FindFirstChild(\"MessageContainer\") or Instance.new(\"ScreenGui\")\n\tcontainer.Name = \"MessageContainer\"\n\tcontainer.IgnoreGuiInset = true\n\tcontainer.ResetOnSpawn = false\n\tcontainer.Parent = gui\n\n\tlocal label = Instance.new(\"TextButton\")\n\tlabel.Name = \"MessageLabel\"\n\tlabel.AnchorPoint = Vector2.new(1, 0)\n\tlabel.Position = UDim2.new(1, -10, 0, 10)\n\tlabel.Size = UDim2.new(0.2, 0, 0.035, 0)\n\tlabel.BackgroundColor3 = Color3.new(1, 1, 1)\n\tlabel.BackgroundTransparency = 0\n\tlabel.TextColor3 = Color3.new(0, 0, 0)\n\tlabel.TextScaled = true\n\tlabel.Font = Enum.Font.SourceSans\n\tlabel.TextWrapped = true\n\tlabel.Text = sender .. \": \" .. message\n\tlabel.Parent = container\n\n\tlocal corner = Instance.new(\"UICorner\")\n\tcorner.CornerRadius = UDim.new(0, 15)\n\tcorner.Parent = label\n\n\tlocal function fadeOut()\n\t\tfor i = 0, 1, 0.1 do\n\t\t\tlabel.TextTransparency = i\n\t\t\tlabel.BackgroundTransparency = i\n\t\t\ttask.wait(0.05)\n\t\tend\n\t\tlabel:Destroy()\n\tend\n\nlabel.MouseButton1Click:Connect(function()\n\tfadeOut()\nend)\n\n\ttask.delay(10, fadeOut)\nend\n\nPrivateEvent.OnClientEvent:Connect(showMessage)\n"
-RecievingEndMsg.Parent = CheatScripts
-
-CheatScripts.Parent = game:GetService("StarterPlayer").StarterPlayerScripts
