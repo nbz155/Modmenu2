@@ -1320,7 +1320,206 @@ UIAspectRatioConstraint46.AspectRatio = 17.2784805
 UIAspectRatioConstraint46.Parent = SpectationControls
 
 local LocalScript9 = Instance.new("LocalScript")
-LocalScript9.Source = "local Players = game:GetService(\"Players\")\nlocal RunService = game:GetService(\"RunService\")\nlocal UserInputService = game:GetService(\"UserInputService\")\nlocal Workspace = game:GetService(\"Workspace\")\n\nlocal player = Players.LocalPlayer\nlocal camera = Workspace.CurrentCamera\n\n-- UI references\nlocal gui = player:WaitForChild(\"PlayerGui\"):WaitForChild(\"AdminPanel\")\nlocal frame = gui:WaitForChild(\"SpectationControls\")\nlocal spectateBtn = gui.Panel.ServerCommandsFrame.Spectation.Spectate\nlocal prevBtn = frame:WaitForChild(\"Previous\")\nlocal nextBtn = frame:WaitForChild(\"Next\")\nlocal leaveBtn = frame:WaitForChild(\"Leave\")\nlocal freecamBtn = frame:FindFirstChild(\"FreecamToggle\")\n\n-- State variables\nlocal spectating = false\nlocal freecam = false\nlocal mouseLocked = true\nlocal targets = {}\nlocal index = 0\nlocal moveSpeed = 50\nlocal rotation = Vector2.new()\nlocal sensitivity = 0.5\n\n-- Platform detection & Freecam button\ntask.wait(0.1)\nlocal onMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled\nif freecamBtn then\n\tfreecamBtn.Visible = onMobile\n\tif onMobile then freecamBtn.Text = \"Enable Free Cam\" end\nend\n\n-- Helper: rebuild target list\nlocal function refreshTargets()\n\ttargets = {}\n\tfor _, p in ipairs(Players:GetPlayers()) do\n\t\tif p ~= player and p.Character and p.Character:FindFirstChild(\"HumanoidRootPart\") then\n\t\t\ttable.insert(targets, p)\n\t\tend\n\tend\n\tindex = (#targets > 0) and math.clamp(index, 1, #targets) or 0\nend\n\n-- Teleport helpers\nlocal function teleportToSpectatePoint()\n\tlocal mm = Workspace:FindFirstChild(\"SpawnPoints\") and Workspace.SpawnPoints:FindFirstChild(\"MMPOINT\")\n\tif mm and player.Character then\n\t\tlocal root = player.Character:FindFirstChild(\"HumanoidRootPart\")\n\t\tif root then\n\t\t\tplayer.Character:SetPrimaryPartCFrame(mm.CFrame + Vector3.new(0, 3, 0))\n\t\tend\n\tend\nend\n\nlocal function teleportToRandomSpawn()\n\tlocal sp = Workspace:FindFirstChild(\"SpawnPoints\")\n\tif sp and player.Character then\n\t\tlocal root = player.Character:FindFirstChild(\"HumanoidRootPart\")\n\t\tif root then\n\t\t\tlocal pts = {}\n\t\t\tfor _, c in ipairs(sp:GetChildren()) do\n\t\t\t\tif c:IsA(\"BasePart\") and c.Name ~= \"MMPOINT\" then\n\t\t\t\t\ttable.insert(pts, c)\n\t\t\t\tend\n\t\t\tend\n\t\t\tlocal count = math.min(9, #pts)\n\t\t\tif count > 0 then\n\t\t\t\tlocal choice = pts[math.random(1, count)]\n\t\t\t\tplayer.Character:SetPrimaryPartCFrame(choice.CFrame + Vector3.new(0, 3, 0))\n\t\t\tend\n\t\tend\n\tend\nend\n\n-- Camera mode handlers\nlocal function enterSpectate()\n\tif index == 0 then return end\n\tlocal t = targets[index]\n\tif t and t.Character then\n\t\tcamera.CameraType = Enum.CameraType.Follow\n\t\tcamera.CameraSubject = t.Character:FindFirstChildOfClass(\"Humanoid\")\n\tend\nend\n\nlocal function exitSpectate()\n\tcamera.CameraType = Enum.CameraType.Custom\n\tif player.Character then\n\t\tcamera.CameraSubject = player.Character:FindFirstChildOfClass(\"Humanoid\")\n\tend\nend\n\nlocal function updateMouseLock()\n\tUserInputService.MouseBehavior = mouseLocked and Enum.MouseBehavior.LockCenter or Enum.MouseBehavior.Default\nend\n\nlocal function enableFreecam()\n\tfreecam = true\n\tcamera.CameraType = Enum.CameraType.Scriptable\n\tif freecamBtn then freecamBtn.Text = \"Free Cam\" end\n\trotation = Vector2.new()\n\tmouseLocked = true\n\tupdateMouseLock()\nend\n\nlocal function disableFreecam()\n\tfreecam = false\n\tif freecamBtn then freecamBtn.Text = \"Enable Free Cam\" end\n\tUserInputService.MouseBehavior = Enum.MouseBehavior.Default\n\tenterSpectate()\nend\n\n-- Input handling (with inverted Y fixed)\nlocal function onInputChanged(input)\n\tif not freecam or not mouseLocked then return end\n\tif input.UserInputType == Enum.UserInputType.MouseMovement then\n\t\tlocal d = input.Delta\n\t\trotation = rotation + Vector2.new(-d.X, -d.Y) * sensitivity\n\telseif input.UserInputType == Enum.UserInputType.Touch then\n\t\tlocal d = input.Delta\n\t\tif typeof(d) == \"Vector2\" then\n\t\t\trotation = rotation + Vector2.new(-d.X, -d.Y) * sensitivity\n\t\tend\n\tend\nend\nUserInputService.InputChanged:Connect(onInputChanged)\n\n-- Freecam update on each frame\nRunService.RenderStepped:Connect(function(dt)\n\tif freecam then\n\t\t-- clamp pitch\n\t\trotation = Vector2.new(rotation.X, math.clamp(rotation.Y, -85, 85))\n\t\tlocal yaw = math.rad(rotation.X)\n\t\tlocal pitch = math.rad(rotation.Y)\n\t\tlocal camPos = camera.CFrame.Position\n\t\tcamera.CFrame = CFrame.new(camPos)\n\t\t\t* CFrame.Angles(0, yaw, 0)\n\t\t\t* CFrame.Angles(pitch, 0, 0)\n\n\t\t-- movement\n\t\tlocal look = camera.CFrame.LookVector\n\t\tlocal right = camera.CFrame.RightVector\n\t\tlocal dir = Vector3.zero\n\t\tif UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += look end\n\t\tif UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= look end\n\t\tif UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= right end\n\t\tif UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += right end\n\t\tif UserInputService:IsKeyDown(Enum.KeyCode.E) then dir += Vector3.new(0,1,0) end\n\t\tif UserInputService:IsKeyDown(Enum.KeyCode.Q) then dir -= Vector3.new(0,1,0) end\n\t\tif dir.Magnitude > 0 then\n\t\t\tcamera.CFrame += dir.Unit * moveSpeed * dt\n\t\tend\n\tend\nend)\n\n-- Spectate toggle logic\nlocal function toggleSpectate()\n\tspectating = not spectating\n\tif spectating then\n\t\tteleportToSpectatePoint()\n\t\trefreshTargets()\n\t\tindex = #targets > 0 and math.random(1, math.min(9, #targets)) or 0\n\t\tenterSpectate()\n\t\tframe.Visible = true\n\t\tspectateBtn.Text = \"Stop Spectating\"\n\telse\n\t\tdisableFreecam()\n\t\texitSpectate()\n\t\tteleportToRandomSpawn()\n\t\tframe.Visible = false\n\t\tspectateBtn.Text = \"Spectate\"\n\tend\nend\nspectateBtn.MouseButton1Click:Connect(toggleSpectate)\n\n-- Cycle targets\nprevBtn.MouseButton1Click:Connect(function()\n\tif spectating then\n\t\tindex = (index == 1) and #targets or index - 1\n\t\tenterSpectate()\n\tend\nend)\nnextBtn.MouseButton1Click:Connect(function()\n\tif spectating then\n\t\tindex = (index == #targets) and 1 or index + 1\n\t\tenterSpectate()\n\tend\nend)\nleaveBtn.MouseButton1Click:Connect(function()\n\tif spectating then\n\t\ttoggleSpectate()\n\tend\nend)\n\n-- Freecam button\nif freecamBtn then\n\tfreecamBtn.MouseButton1Click:Connect(function()\n\t\tif spectating then\n\t\t\tif freecam then disableFreecam() else enableFreecam() end\n\t\tend\n\tend)\nend\n\n-- Keyboard controls\nUserInputService.InputBegan:Connect(function(input, gameProcessed)\n\tif gameProcessed or not spectating then return end\n\tif input.KeyCode == Enum.KeyCode.Space then\n\t\tif freecam then disableFreecam() else enableFreecam() end\n\telseif input.KeyCode == Enum.KeyCode.C and freecam then\n\t\tmouseLocked = not mouseLocked\n\t\tupdateMouseLock()\n\tend\nend)\n\n-- Update targets dynamically\nPlayers.PlayerAdded:Connect(function() if spectating then refreshTargets() end end)\nPlayers.PlayerRemoving:Connect(function() if spectating then refreshTargets() end end)\n\n-- Reset camera on respawn\nplayer.CharacterAdded:Connect(function(char)\n\tif not spectating then\n\t\tlocal h = char:WaitForChild(\"Humanoid\", 10)\n\t\tif h then camera.CameraSubject = h end\n\tend\nend)\n"
+LocalScript9.Source = [[
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+local camera = Workspace.CurrentCamera
+
+local gui = player:WaitForChild("PlayerGui"):WaitForChild("AdminPanel")
+local frame = gui:WaitForChild("SpectationControls")
+local spectateBtn = gui.Panel.ServerCommandsFrame.Spectation.Spectate
+local prevBtn = frame:WaitForChild("Previous")
+local nextBtn = frame:WaitForChild("Next")
+local leaveBtn = frame:WaitForChild("Leave")
+local freecamBtn = frame:FindFirstChild("FreecamToggle")
+
+local spectating, freecam, mouseLocked = false, false, true
+local targets = {}
+local index = 0
+local moveSpeed = 50
+local rotation = Vector2.new()
+local sensitivity = 0.5
+
+task.wait(0.1)
+local onMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+if freecamBtn then
+	freecamBtn.Visible = onMobile
+	if onMobile then freecamBtn.Text = "Enable Free Cam" end
+end
+
+local function refreshTargets()
+	targets = {}
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+			targets[#targets+1] = p
+		end
+	end
+	index = (#targets > 0) and math.clamp(index, 1, #targets) or 0
+end
+
+local function teleportTo(cframe)
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if root then player.Character:SetPrimaryPartCFrame(cframe + Vector3.new(0,3,0)) end
+end
+
+local function teleportToSpectatePoint()
+	local mm = Workspace:FindFirstChild("SpawnPoints") and Workspace.SpawnPoints:FindFirstChild("MMPOINT")
+	if mm then teleportTo(mm.CFrame) end
+end
+
+local function teleportToRandomSpawn()
+	local sp = Workspace:FindFirstChild("SpawnPoints")
+	if sp then
+		local pts = {}
+		for _, c in ipairs(sp:GetChildren()) do
+			if c:IsA("BasePart") and c.Name ~= "MMPOINT" then
+				pts[#pts+1] = c
+			end
+		end
+		local count = math.min(9, #pts)
+		if count > 0 then teleportTo(pts[math.random(1,count)].CFrame) end
+	end
+end
+
+local function enterSpectate()
+	if index == 0 then return end
+	local t = targets[index]
+	if t and t.Character then
+		camera.CameraType = Enum.CameraType.Follow
+		camera.CameraSubject = t.Character:FindFirstChildOfClass("Humanoid")
+	end
+end
+
+local function exitSpectate()
+	camera.CameraType = Enum.CameraType.Custom
+	if player.Character then
+		camera.CameraSubject = player.Character:FindFirstChildOfClass("Humanoid")
+	end
+end
+
+local function updateMouseLock()
+	UserInputService.MouseBehavior = mouseLocked and Enum.MouseBehavior.LockCenter or Enum.MouseBehavior.Default
+end
+
+local function enableFreecam()
+	freecam = true
+	camera.CameraType = Enum.CameraType.Scriptable
+	if freecamBtn then freecamBtn.Text = "Free Cam" end
+	rotation = Vector2.new()
+	mouseLocked = true
+	updateMouseLock()
+end
+
+local function disableFreecam()
+	freecam = false
+	if freecamBtn then freecamBtn.Text = "Enable Free Cam" end
+	UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+	enterSpectate()
+end
+
+UserInputService.InputChanged:Connect(function(input)
+	if not freecam or not mouseLocked then return end
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+		local d = input.Delta
+		if typeof(d) == "Vector2" then
+			rotation += Vector2.new(-d.X, -d.Y) * sensitivity
+		end
+	end
+end)
+
+RunService.RenderStepped:Connect(function(dt)
+	if freecam then
+		rotation = Vector2.new(rotation.X, math.clamp(rotation.Y, -85, 85))
+		local yaw, pitch = math.rad(rotation.X), math.rad(rotation.Y)
+		camera.CFrame = CFrame.new(camera.CFrame.Position) * CFrame.Angles(0, yaw, 0) * CFrame.Angles(pitch, 0, 0)
+
+		local dir = Vector3.zero
+		local look, right = camera.CFrame.LookVector, camera.CFrame.RightVector
+		if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += look end
+		if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= look end
+		if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= right end
+		if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += right end
+		if UserInputService:IsKeyDown(Enum.KeyCode.E) then dir += Vector3.new(0,1,0) end
+		if UserInputService:IsKeyDown(Enum.KeyCode.Q) then dir -= Vector3.new(0,1,0) end
+		if dir.Magnitude > 0 then camera.CFrame += dir.Unit * moveSpeed * dt end
+	end
+end)
+
+local function toggleSpectate()
+	spectating = not spectating
+	if spectating then
+		teleportToSpectatePoint()
+		refreshTargets()
+		index = (#targets > 0) and math.random(1, math.min(9, #targets)) or 0
+		enterSpectate()
+		frame.Visible = true
+		spectateBtn.Text = "Stop Spectating"
+	else
+		disableFreecam()
+		exitSpectate()
+		teleportToRandomSpawn()
+		frame.Visible = false
+		spectateBtn.Text = "Spectate"
+	end
+end
+
+spectateBtn.MouseButton1Click:Connect(toggleSpectate)
+
+prevBtn.MouseButton1Click:Connect(function()
+	if spectating then
+		index = (index == 1) and #targets or index - 1
+		enterSpectate()
+	end
+end)
+
+nextBtn.MouseButton1Click:Connect(function()
+	if spectating then
+		index = (index == #targets) and 1 or index + 1
+		enterSpectate()
+	end
+end)
+
+leaveBtn.MouseButton1Click:Connect(function()
+	if spectating then toggleSpectate() end
+end)
+
+if freecamBtn then
+	freecamBtn.MouseButton1Click:Connect(function()
+		if spectating then
+			if freecam then disableFreecam() else enableFreecam() end
+		end
+	end)
+end
+
+UserInputService.InputBegan:Connect(function(input, processed)
+	if processed or not spectating then return end
+	if input.KeyCode == Enum.KeyCode.Space then
+		if freecam then disableFreecam() else enableFreecam() end
+	elseif input.KeyCode == Enum.KeyCode.C and freecam then
+		mouseLocked = not mouseLocked
+		updateMouseLock()
+	end
+end)
+
+Players.PlayerAdded:Connect(function()
+	if spectating then refreshTargets() end
+end)
+
+Players.PlayerRemoving:Connect(function()
+	if spectating then refreshTargets() end
+end)
+
+player.CharacterAdded:Connect(function(char)
+	if not spectating then
+		local h = char:WaitForChild("Humanoid", 10)
+		if h then camera.CameraSubject = h end
+	end
+end)
+
 LocalScript9.Parent = SpectationControls
 
 local FreeCamEnable = Instance.new("TextButton")
@@ -1384,3 +1583,4 @@ Start.Source = "local ScriptHost = game.Players.LocalPlayer\nlocal Panel = game.
 Start.Parent = AdminPanel
 
 AdminPanel.Parent = game:GetService("StarterGui")
+]]
